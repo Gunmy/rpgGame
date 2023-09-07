@@ -1,5 +1,5 @@
 # rpgGame
-rpgGame is a work in progress game that is made from scratch using just HTML and JavaScript, and is currently work in progress. Here are some images from the current state of the game (not the most recently uploaded one)
+rpgGame is a game that is made from scratch using just HTML and JavaScript, and is currently work in progress. Here are some images from the current state of the game (not the most recently uploaded one)
 
 
 |<img width="421" alt="image" src="https://github.com/Gunmy/rpgGame/assets/99408493/ed37ce20-7ad2-4246-b8d2-bac51bce65f4">|
