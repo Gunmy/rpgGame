@@ -4,7 +4,7 @@ rpgGame is a work in progress game that is made from scratch using just HTML and
 
 |<img width="421" alt="image" src="https://github.com/Gunmy/rpgGame/assets/99408493/ed37ce20-7ad2-4246-b8d2-bac51bce65f4">|
 |:--:|
-|*Figure x: Clothes affect the visual look of your character*|
+|*Figure x: Clothes affect not just your stats, but also the visual look of your character*|
 
 
 |<img width="563" alt="image" src="https://github.com/Gunmy/rpgGame/assets/99408493/df05e959-de1c-4afc-9db2-f34fde00bbfe">|
