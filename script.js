@@ -1,10 +1,3 @@
-//Stop scrolling with arrowkeys because the game uses those
-window.addEventListener("keydown", function(e) {
-    if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1){
-        e.preventDefault();
-    }
-}, false);
-
 let gtx = document.getElementById("canvas");
 let ctx = gtx.getContext("2d");
 let pOutput = document.getElementById("pOutput");
@@ -47,6 +40,12 @@ let patternY = [1, 0, 1];
 let tileBorderHeight = tilePixelHeight/40;
 let tileBorderWidth = tilePixelWidth/40;
 
+entitiesList = [];
+particlesListInFront = [];
+particlesListBehind = [];
+projectilesList = [];
+droppedItemsList = [];
+
 const PI = Math.PI;
 
 class chunk {
@@ -60,6 +59,10 @@ class chunk {
     constructor (x, y) {
         this.x = x;
         this.y = y;
+
+        if (round(random()) == 1) {
+            this.entitiesList.push(new animal(this.x+0.5, this.y+0.5, 0));
+        }
 
         let chunkPatternX = [-1, 0, 1, 
                             -1,     1, 
@@ -135,7 +138,10 @@ class chunk {
                     this.tiles = structureDictionary[chunkTypeDictionary[this.type].structures[n]].addStructure(this.tiles);
                     console.log(chunkTypeDictionary[this.type].structures[n]);
                     if (chunkTypeDictionary[this.type].structures[n] == 8) {
-                        entitiesList.push(new camper(0, 900, this.x+0.5, this.y+0.5, 100, 100, 0.05, 0.1, 1, ["Sexy", "Lazy", "Racist"][floor(random()*3)] + " Camper", [0, 0, 0]));
+                        entitiesList.push(new camper(0, 900, this.x+0.5, this.y+0.5, 100, 100, 0.05, 0.1, 1, ["Uncool", "Lazy", "Silly"][floor(random()*3)] + " Camper", [0, 0, 0]));
+                        //costumeX, costumeY, x, y, width, height, sizeRadius, speed, trackingRange, name
+                    } if (chunkTypeDictionary[this.type].structures[n] == 10) {
+                        entitiesList.push(new skeleton(this.x+0.5, this.y+0.5));
                         //costumeX, costumeY, x, y, width, height, sizeRadius, speed, trackingRange, name
                     }
                     
@@ -146,6 +152,10 @@ class chunk {
             }
         }
 
+    }
+
+    storeEntity (entity) {
+        this.entitiesList.push(entity);
     }
 
     distancePlayerToMouse (tile) {
@@ -164,7 +174,7 @@ class chunk {
                 && ((y * (j-1) * tilePixelHeight < HEIGHT || y * (j-1) * tilePixelHeight > 0) || (y * j * tilePixelHeight < HEIGHT || y * j * tilePixelHeight > 0))
                 ) {
 
-                //Sends the information of 3 tiles next to it (L-shape) to the tile,
+                //Sends the information of 3 tiles next to it (L-shape) to the tile,w
                 //so that it can draw borders
                 let surroundings = {};
                 for (let k = 0; k < patternX.length; k++) {
@@ -192,12 +202,20 @@ class chunk {
                     mouse.x <= x + (i + 1) * tilePixelWidth &&
                     y + j * tilePixelHeight < mouse.y &&
                     mouse.y <= y + (j + 1) * tilePixelHeight) {
+                        if (!arrayEquals(mouse.tile, [i, j])) {
+                            mouse.progressDestroy = 0;
+                        }
                         mouse.tile = [i, j];
-                        ctx.drawImage(
-                            tileMap, 500, 0, 100, 100,
-                            round(x + i * tilePixelWidth), round(y + j * tilePixelHeight), 
-                            tilePixelWidth, tilePixelHeight
-                        );
+
+                        if (this.tiles[[i, j]] != 2) {
+                            ctx.drawImage(
+                                tileMap, 500 + 50-mouse.progressDestroy/tilesDictionary[this.tiles[[i, j]]].breakingPower*50, 
+                                100 + 50-mouse.progressDestroy/tilesDictionary[this.tiles[[i, j]]].breakingPower*50, 
+                                100 * mouse.progressDestroy/tilesDictionary[this.tiles[[i, j]]].breakingPower, 100 * mouse.progressDestroy/tilesDictionary[this.tiles[[i, j]]].breakingPower,
+                                round(x + i * tilePixelWidth), round(y + j * tilePixelHeight), 
+                                tilePixelWidth, tilePixelHeight
+                            );
+                        }
                         ctx.beginPath();
 
                         if (this.distancePlayerToMouse(mouse.tile)) {
@@ -215,25 +233,6 @@ class chunk {
                         
                 }
 
-                for (let n = 0; n < (player.corners).length; n++) {
-                    if (x + i * tilePixelWidth < player.corners[n][0] &&
-                        player.corners[n][0] <= x + (i + 1) * tilePixelWidth &&
-                        y + j * tilePixelHeight < player.corners[n][1] &&
-                        player.corners[n][1] <= y + (j + 1) * tilePixelHeight) {
-                            if (tilesDictionary[this.tiles[[i, j]]].level > player.level) {
-                                player.level = tilesDictionary[this.tiles[[i, j]]].level;
-                            }
-                        
-                            if (tilesDictionary[this.tiles[[i, j]]].isFluid) {
-                                player.inFluidCorners[n] = true;
-                            }
-
-                            if (this.tiles[[i, j]] == 6) {
-                                player.onFire = true;
-                            }
-                        
-                    }
-                }
                 if (abs(floor(this.x)-floor(player.x)) <= entityLoadDistance 
                 && abs(floor(this.y)-floor(player.y)) <= entityLoadDistance) {
                     if (this.tiles[[i, j]] == 6 && floor(random()*2000) == 1) {
@@ -272,26 +271,65 @@ class chunk {
     }
     
 
-    destroyBlock (tile) {
-        if (this.distancePlayerToMouse(tile)) {
-            let tempMouseTile = this.tiles[tile];
-            this.tiles[tile] = mouse.lastTile;
-            mouse.lastTile = tempMouseTile;
-            for (let i = 0; i < 10; i++) {
-                particlesListInFront.push(
-                    new coloredParticle(this.x+(tile[0]+random())/chunkWidth, this.y+(tile[1]+random())/chunkHeight, 0.2, random()*2, 
-                    [round(random()*255), round(random()*255), round(random()*255)], 0.3, 
-                    negPos(), 1, 1));
-                particlesListInFront.push(
-                    new textParticle(this.x+(tile[0]+random())/chunkWidth, this.y+(tile[1]+random())/chunkHeight, random()*0.3, random()*2,  
-                        [round(random()*255), round(random()*255), round(random()*255)], 0.3, 
-                        negPos(), 1, 1, "Replaced"));
+    destroyTile (tile) {
+        mouse.progressDestroy += player.realStats.stats[4];
+        if (mouse.progressDestroy >= tilesDictionary[this.tiles[tile]].breakingPower) {
+            mouse.progressDestroy = 0;
+            if (this.distancePlayerToMouse(tile) && this.tiles[tile] != 2) {
+                let audio = new Audio('soundEffects/destroytile.mp3');
+                audio.volume = 0.1;
+                audio.play();
+                let split = 4;
+                for (let i = 0; i < split; i++) {
+                    for (let j = 0; j < split; j++) {
+    
+                        particlesListInFront.push(
+                            new tileImageParticle(this.x+(tile[0]+1/split*i)/chunkWidth, 
+                                             this.y+(tile[1]+1/split*j)/chunkHeight,
+                                             tilesDictionary[this.tiles[tile]].x+tilesDictionary[this.tiles[tile]].width/split*i, tilesDictionary[this.tiles[tile]].y+tilesDictionary[this.tiles[tile]].height/split*j, 
+                                             tilesDictionary[this.tiles[tile]].width/split, tilesDictionary[this.tiles[tile]].height/split,
+                                             1/split, 1/split,
+                                             2, 0.2+random()*0.4, negPos(), 1, 1)
+                        );
+                    }
+                }
+    
+                droppedItemsList.push(new droppedItem(tilesDictionary[this.tiles[tile]].drop, this.x+(tile[0]+0.3+random()*0.4)/chunkWidth, this.y+(tile[1]+0.3+random()*0.4)/chunkHeight, 0, 0, 10, 1, tileExtraInfo));
+                this.tiles[tile] = 2;
+            }
+        }
+    }
+
+    placeTile (tile) {
+        if (this.distancePlayerToMouse(tile) && this.tiles[tile] == 2) {
+            let audio = new Audio('soundEffects/place.mp3');
+            audio.volume = 0.5;
+            audio.play();
+            this.tiles[tile] = equipmentBasic.content[player.inventoryHolding+9].containing;
+            equipmentBasic.content[player.inventoryHolding+9].amount -= 1;
+            if (equipmentBasic.content[player.inventoryHolding+9].amount <= 0) {
+                equipmentBasic.content[player.inventoryHolding+9].amount = 0;
+                equipmentBasic.content[player.inventoryHolding+9].containing = false;
             }
         }
     }
 
 }
 
+let moveBuffs = {
+    "up": 87,
+    "down": 83,
+    "left": 65,
+    "right": 68,
+    "sprint": 17
+}
+
+let map = {};
+map[[0, 0]] = new chunk(0, 0);
+map[[-1, 0]] = new chunk(-1, 0);
+map[[1, 0]] = new chunk(1, 0);
+map[[0, 1]] = new chunk(0, 1);
+map[[0, -1]] = new chunk(0, -1);
 
 class playerClass {
     x; y;
@@ -299,13 +337,15 @@ class playerClass {
     height = 100;
     sizeRadius = 0.2;
     hitBox = 0.02;
-    maxHealth = 100;
-    health = this.maxHealth;
+    pickUpRadius = 0.05;
+    health = 100;
+
+    inventoryHolding = 0;
 
     velx = 0;
     vely = 0;
-    speed = 0.11;
-    smooth = 0.4;
+    speed = 0.2;
+    smooth = 0.5;
     inFluid = 0;
     inFluidCorners = [false, false, false, false];
     onFire = false;
@@ -314,27 +354,103 @@ class playerClass {
 
     sizeConstant = 0.1;
 
-    animations = [
-                    [0, 0],
-                    [100, 0],
-                    [200, 0],
-                    [100, 0],
-                    [0, 0],
-                    [100, 100],
-                    [200, 100]
-    ];
-    animationOffset = [0, 0];
     lastMoved = Date.now();
     level = 0;
 
-    speedBuffMax = 500;
-    speedBuffLeft = this.speedBuffMax;
+    manaLeft = 0;
     speedBuffActive = 0;
-    speedBuffLastActive = Date.now();
+    manaLastActive = Date.now();
 
     corners;
 
     feety; feetx; realx; realy;
+
+    baseStats = new extraInfo([0, 100, 3, 100, 5, 100, 8, 100]);
+    
+    realStats = new extraInfo([0, 100]);
+
+    maxMana;
+    maxHealth;
+
+    get statUpdate () {
+        for (let i = 0; i < Object.keys(statsList).length; i++) {
+            this.realStats.stats[i] = 0;
+        }
+
+        let extraInfoList = [];
+        extraInfoList.push(this.baseStats);
+
+        if (equipmentBasic.content[this.inventoryHolding + 9].extraInfo != false) {
+            extraInfoList.push(equipmentBasic.content[this.inventoryHolding + 9].extraInfo);
+        }
+
+        for (let i = 0; i < 9; i++) {
+            if (equipmentBasic.content[i].extraInfo != false) {
+                extraInfoList.push(equipmentBasic.content[i].extraInfo);
+            }
+        }
+
+        let tempStats;
+        for (let j = 0; j < extraInfoList.length; j++) {
+            tempStats = extraInfoList[j].returnStats;
+            for (let i = 0; i < tempStats.length; i+=2)  {
+                this.realStats.stats[tempStats[i]] += tempStats[i+1];
+            }
+        }
+
+        this.maxMana = this.realStats.stats[3];
+        this.maxHealth = this.realStats.stats[0];
+    }
+
+    get shatter () {
+        let max = 3;
+        for (let i = 0; i < max; i++) {
+            for (let j = 0; j < max; j++) {
+                particlesListBehind.push(new imageParticle(
+                    this.x+(1/max*i-0.5)/chunkWidth, 
+                    this.y+(1/max*j-0.5)/chunkHeight, 
+                    500+this.width*(1/max*i), 
+                    0+this.height*(1/max*j), 
+                    this.width/max, this.height/max, 1/max, 1/max,
+                    5, 0.1+0.3*random(), negPos(), 1, 1));
+            }
+        }
+    }
+
+    get healthUpdate () {
+        if (this.health <= 0) {
+            this.shatter;
+            this.health = this.maxHealth;
+            this.x = 0;
+            this.y = 0;
+        } else if (this.health < this.maxHealth) {
+            this.health += this.maxHealth * deltaTime/100;
+        }
+
+        if (this.health > this.maxHealth) {
+            this.health = this.maxHealth;
+        }
+    }
+
+    get speedBuffUpdate () {
+        if (buffs[moveBuffs["sprint"]] == 1 && this.manaLeft > 0) {
+            this.speedBuffActive = 1;
+            this.manaLastActive = Date.now();
+            this.manaLeft -= deltaTime * 100;
+            if (this.manaLeft < 0) {
+                this.manaLeft = 0;
+            }
+        } else {
+            this.speedBuffActive = 0;
+        }
+        
+        if (Date.now() - this.manaLastActive > 1000) {
+            this.manaLeft += 0.1 + deltaTime * this.manaLeft * 0.9;
+            if (this.manaLeft > this.maxMana) {
+                this.manaLeft = this.maxMana;
+            }
+        }
+    }
 
     get realPos () {
         this.realx = round((WIDTH-tilePixelWidth - (this.level-1)*tilePixelWidth*this.sizeConstant)/2);
@@ -357,79 +473,141 @@ class playerClass {
     }
 
     get move () {
+        this.speedBuffUpdate;
+        this.healthUpdate;
 
         if (this.inFluidCorners.every(element => element === true)) {
             this.inFluid = 1;
         }
 
-        //Speedbuff on ctrl
-        if (buffs[17] == 1 && this.speedBuffLeft > 0) {
-            this.speedBuffActive = 1;
-            this.speedBuffLastActive = Date.now();
-            this.speedBuffLeft -= deltaTime * 100;
-            if (this.speedBuffLeft < 0) {
-                this.speedBuffLeft = 0;
-            }
-        } else if (Date.now() - this.speedBuffLastActive > 1000) {
-            this.speedBuffActive = 0;
-            this.speedBuffLeft += 0.1 + deltaTime * this.speedBuffLeft * 0.9;
-            if (this.speedBuffLeft > this.speedBuffMax) {
-                this.speedBuffLeft = this.speedBuffMax;
-            }
-        } else {
-            this.speedBuffActive = 0;
-        }
+        this.velx = this.velx * (this.smooth) + (buffs[moveBuffs["right"]] - buffs[moveBuffs["left"]]) * this.speed * deltaTime * (1 + this.speedBuffActive/3*2) * this.realStats.stats[5]/100;
+        this.vely = this.vely * (this.smooth) + (buffs[moveBuffs["down"]] - buffs[moveBuffs["up"]]) * this.speed * deltaTime * (1 + this.speedBuffActive/3*2) * this.realStats.stats[5]/100;
 
-        if (this.health <= 0) {
-            this.health = this.maxHealth;
-            this.x = 0;
-            this.y = 0;
-        } else if (this.health < this.maxHealth) {
-            this.health += this.maxHealth * deltaTime/100;
-        }
+        let max = 30;
 
-        if (this.health > this.maxHealth) {
-            this.health = this.maxHealth;
-        }
+        for (let i = 0; i <= max; i++) {
+            let xTile; let yTile;
 
-        this.velx = this.velx * this.smooth + (buffs[39] - buffs[37]) * this.speed * deltaTime * (1 + this.speedBuffActive/3*2) / (1 + this.inFluid);
-        this.vely = this.vely * this.smooth + (buffs[40] - buffs[38]) * this.speed * deltaTime * (1 + this.speedBuffActive/3*2) / (1 + this.inFluid);
-
-        if (Date.now() - this.lastMoved > 80-this.speedBuffActive*50) {
-            this.lastMoved = Date.now();
-            if (round(abs(this.velx)*chunkWidth/deltaTime) > 0 || round(abs(this.vely)*chunkHeight/deltaTime) > 0) {
-                if (round(this.vely*chunkHeight/deltaTime) < 0) {
-                    this.animationOffset[1] = 200;
+            let xOffsets = [round(this.halfWidth/chunkWidth/3*100)/100, 0, round(-this.halfWidth/chunkWidth/3*100)/100];
+            let ok = true;
+            for (let j = 0; j < 3; j++) {
+                let futureX = this.x+this.velx + xOffsets[j];
+                let futureY = this.y+this.vely+this.halfHeight/chunkHeight*0.8;
+    
+                if (futureX < 0) {
+                    xTile = floor((1+futureX%1)*chunkWidth);
                 } else {
-                    this.animationOffset[1] = 0;
+                    xTile = floor((futureX%1)*chunkWidth);
                 }
-
-                if (this.inFluid == 1) {
-                    this.animationOffset[0] = 1000;
+    
+                if (futureY < 0) {
+                    yTile = floor((1+futureY%1)*chunkHeight);
                 } else {
-                    this.animationOffset[0] = 0;
+                    yTile = floor((futureY%1)*chunkHeight);
                 }
-                this.state++;
-                if (this.state >= this.animations.length) {
-                    this.state = 0;
+    
+                let futureChunk = [floor(futureX), floor(futureY)];
+                let futureTile = [xTile, yTile];
+                
+                if (!tilesDictionary[map[futureChunk].tiles[futureTile]] || tilesDictionary[map[futureChunk].tiles[futureTile]].level > 1) {
+                    ok = false;
+                    break;
                 }
+            }
+            if (ok) {
+                this.y += this.vely;
+                this.x += this.velx;
+                break;
+            } else if (i == max) {
+                this.velx = 0;
+                this.vely = 0;
             } else {
-                this.state = 0;
+                this.velx *= 0.7;
+                this.velx = round(this.velx*1000)/1000;
+                this.vely *= 0.7;
+                this.vely = round(this.vely*1000)/1000;
             }
         }
-
-        this.y += this.vely;
-        this.x += this.velx;
     }
+
+    get sinFunction () {
+        return sin(Date.now()/(50/(this.speedBuffActive*0.5+1)));
+    }
+
+    get cosFunction () {
+        return cos(Date.now()/(50/(this.speedBuffActive*0.5+1))+1/3*PI);
+    }
+
+    get moving () {
+        return ((abs(this.velx) + abs(this.vely))/deltaTime*10000 > 1);
+    }
+
+    get halfWidth () {
+        return 1/2*(1-0.05*this.cosFunction);
+    }
+
+    get halfHeight () {
+        return 1/2;
+    }
+
 
     get draw () {
         this.realPos;
+        ctx.save();
+        ctx.translate(WIDTH/2, HEIGHT/2);
+        if ((buffs[moveBuffs["right"]] == 1 || buffs[moveBuffs["left"]] == 1 || buffs[moveBuffs["up"]] == 1 || buffs[moveBuffs["down"]] == 1) && this.moving) {
+            ctx.rotate(PI*this.sinFunction/20);
+            if (buffs[moveBuffs["left"]] == 1) {
+                ctx.scale(-1, 1);
+            }
+
+        }
+
+        let tempX = -this.halfWidth*tilePixelWidth;
+
+        let tempY1 = -this.halfHeight*tilePixelWidth;
+        let tempY = tempY1*(1-0.1*this.sinFunction);
+        let tempWidth = tilePixelWidth*(1-0.05*this.cosFunction);
+
+        let tempHeight = (tempY1+tempY)*-1;
+
+        //let tempHeight = (tilePixelHeight + round((this.level-1)*tilePixelHeight*this.sizeConstant))*(1-0.1*this.sinFunction)*1.2;
         ctx.drawImage(
             entitiesMap,
-            this.animations[this.state][0]+this.animationOffset[0], this.animations[this.state][1]+this.animationOffset[1], this.width, this.height,
-            this.realx, this.realy, tilePixelWidth + round((this.level-1)*tilePixelWidth*this.sizeConstant), 
-            tilePixelHeight + round((this.level-1)*tilePixelHeight*this.sizeConstant)
+            700, 0, this.width, this.height,
+            tempX, tempY, tempWidth, tempHeight
         );
+
+        if (equipmentBasic.content[1].containing != false) {
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[1].containing].color;
+            ctx.fillRect(tempX+tempWidth*0.2, tempY, tempWidth*0.6, tempHeight*0.25);
+        }
+
+        if (equipmentBasic.content[4].containing != false) {
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[4].containing].color[0];
+            ctx.fillRect(tempX+tempWidth*0.2, tempY+tempHeight*7/20, tempWidth*0.6, tempHeight*6/20);
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[4].containing].color[1];
+            ctx.fillRect(tempX+tempWidth*9/20, tempY+tempHeight*9/20, tempWidth*1/10, tempHeight*1/10);
+        }
+
+        if (equipmentBasic.content[7].containing != false) {
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[7].containing].color[1];
+            ctx.fillRect(tempX+tempWidth*0.2, tempY+tempHeight*13/20, tempWidth*0.6, tempHeight*1/20);
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[7].containing].color[0];
+            ctx.fillRect(tempX+tempWidth*0.2, tempY+tempHeight*7/10, tempWidth*0.6, tempHeight*3/20);
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[7].containing].color[2];
+            ctx.fillRect(tempX+tempWidth*0.2, tempY+tempHeight*17/20, tempWidth*5/20, tempHeight*3/20);
+            ctx.fillStyle = tilesDictionary[equipmentBasic.content[7].containing].color[2];
+            ctx.fillRect(tempX+tempWidth*11/20, tempY+tempHeight*17/20, tempWidth*5/20, tempHeight*3/20);
+        }
+
+        ctx.drawImage(
+            entitiesMap,
+            800, 0, this.width, this.height,
+            tempX, tempY, tempWidth, tempHeight
+        );
+
+        ctx.restore();
     }
 }
 
@@ -486,47 +664,40 @@ function displayEffects () {
     ctx.arc(WIDTH-80, HEIGHT-80, 50, 0, 2*PI);
     ctx.fill();
 
-    ctx.lineWidth = 20;
+    ctx.lineWidth = 18;
     ctx.beginPath();
     grd = ctx.createLinearGradient(WIDTH-130, HEIGHT-130, WIDTH-30, HEIGHT-30);
     grd.addColorStop(0, "#FFFFFF");
     grd.addColorStop(0.4, "#FF0000");
     grd.addColorStop(1, "#990200");
     ctx.strokeStyle = grd;
-    ctx.arc(WIDTH-80, HEIGHT-80, 40, -3/4*PI, -3/4*PI-2*PI*player.health/player.maxHealth, true);
+    ctx.arc(WIDTH-80, HEIGHT-80, 39, -3/4*PI, -3/4*PI-2*PI*player.health/player.maxHealth, true);
     ctx.stroke();
 
-    ctx.lineWidth = 30;
+    ctx.lineWidth = 25;
     ctx.beginPath();
     grd = ctx.createLinearGradient(WIDTH-130, HEIGHT-130, WIDTH-30, HEIGHT-30);
     grd.addColorStop(0, "#FFFFFF");
     grd.addColorStop(0.4, "#03DB00");
     grd.addColorStop(1, "#029100");
     ctx.strokeStyle = grd;
-    ctx.arc(WIDTH-80, HEIGHT-80, 15, -3/4*PI, -3/4*PI-2*PI*player.speedBuffLeft/player.speedBuffMax, true);
+    ctx.arc(WIDTH-80, HEIGHT-80, 15, -3/4*PI, -3/4*PI-2*PI*player.manaLeft/player.maxMana, true);
     ctx.stroke();
 
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    /*grd = ctx.createLinearGradient(WIDTH-130, HEIGHT-130, WIDTH-30, HEIGHT-30);
-    grd.addColorStop(0, "#FFFFFF");
-    grd.addColorStop(0.4, "#FFFF21");
-    grd.addColorStop(1, "#CCCC1A");
-    ctx.strokeStyle = grd;*/
-    ctx.strokeStyle = "white";
-    ctx.arc(WIDTH-80, HEIGHT-80, 50, 0, 2*PI);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(WIDTH-80, HEIGHT-80, 30, 0, 2*PI);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(WIDTH-80, HEIGHT-80, 1, 0, 2*PI);
-    ctx.stroke();
+    let sideLength = WIDTH/13;
+    for (let i = 0; i < 3; i++) {
+        if (player.inventoryHolding == i) {
+            ctx.drawImage(inventoryMap, 100, 0, 100, 100, WIDTH/2+(-sideLength*1.5+sideLength*i), HEIGHT-sideLength*1.2, sideLength, sideLength);
+            equipmentBasic.content[i+9].draw(WIDTH/2+(-sideLength*1.5+sideLength*i)-10, HEIGHT-sideLength*1.2-10, sideLength, sideLength);
+        } else {
+            equipmentBasic.content[i+9].draw(WIDTH/2+(-sideLength*1.5+sideLength*i), HEIGHT-sideLength*1.2, sideLength, sideLength);
+
+        }
+    }
+
 }
 
 let player = new playerClass(0, 0);
-
-let map = {};
 
 
 document.addEventListener("keydown", keyDown);
@@ -541,10 +712,12 @@ let mouse = {
     y: 0,
     chunk: [0, 0],
     tile: [0, 0],
+    progressDestroy: 0,
     lastTile: 1,
     range: 4,
-    containing: 100,
-    amount: 1
+    containing: false,
+    amount: 0,
+    extraInfo: false
 }
 
 function mouseMove (e) {
@@ -557,9 +730,8 @@ function mouseMove (e) {
 function mouseClick (e) {
     if (inventoryActive) {
         inventoryClick();
-    } else {
-        console.log(mouse.x + " " + mouse.y + " " + mouse.chunk);
-        map[mouse.chunk].destroyBlock(mouse.tile);
+    } else if (equipmentBasic.content[player.inventoryHolding+9].containing != false) {
+        tilesDictionary[equipmentBasic.content[player.inventoryHolding+9].containing].mouseClick();
     }
 }
 
@@ -572,11 +744,11 @@ function mouseZoom (e) {
     if (tilePixelHeight < 1) {tilePixelHeight = 1;}
     if (tilePixelWidth < 1) {tilePixelWidth = 1;}
 
-    chunkLoadHeight = round(100/tilePixelHeight);
+    /*chunkLoadHeight = round(100/tilePixelHeight);
     chunkLoadWidth  = round(100/tilePixelWidth);
 
     if (chunkLoadHeight > 10) {chunkLoadHeight = 10;} else if (chunkLoadHeight < 4) {chunkLoadHeight = 4;}
-    if (chunkLoadWidth > 10) {chunkLoadWidth = 10;} else if (chunkLoadWidth < 4) {chunkLoadWidth = 4;}
+    if (chunkLoadWidth > 10) {chunkLoadWidth = 10;} else if (chunkLoadWidth < 4) {chunkLoadWidth = 4;}*/
 
     chunkPixelHeight = tilePixelHeight * chunkHeight;
     chunkPixelWidth = tilePixelWidth * chunkWidth;
@@ -592,6 +764,29 @@ function keyDown (e) {
     let pressed = e.keyCode;
     console.log(pressed);
     buffs[pressed] = 1;
+
+    switch(pressed) {
+        case 49:
+            player.inventoryHolding = 0;
+            break;
+        case 50:
+            player.inventoryHolding = 1;
+            break;
+        case 51:
+            player.inventoryHolding = 2;
+            break;
+        case 81:
+            if (equipmentBasic.content[player.inventoryHolding+9].containing != false) {
+                droppedItemsList.push(new droppedItem(equipmentBasic.content[player.inventoryHolding+9].containing, player.x, player.y, calcAngleToMouse(WIDTH/2, HEIGHT/2), 0.2, 10, 1, equipmentBasic.content[player.inventoryHolding+9].extraInfo));
+                equipmentBasic.content[player.inventoryHolding+9].minusOne;
+            }
+        case 80: 
+            if(inventoryActive && mouse.containing != false) {
+                placeItem();
+            }
+        default:
+            //stuff
+    }
 }
 
 function keyUp (e) {
@@ -635,26 +830,25 @@ function drawTiles () {
                 map[[chunkCoordinateX, chunkCoordinateY]] = new chunk(chunkCoordinateX, chunkCoordinateY);
             }
 
+            if (map[[chunkCoordinateX, chunkCoordinateY]].entitiesList.length > 0 && abs(chunkCoordinateX-floor(player.x)) <= entityLoadDistance
+            && abs(chunkCoordinateY-floor(player.y)) <= entityLoadDistance) {
+                entitiesList = entitiesList.concat(map[[chunkCoordinateX, chunkCoordinateY]].entitiesList);
+                map[[chunkCoordinateX, chunkCoordinateY]].entitiesList = [];
+            }
+
             //Execute draw function of the chunk that is being loaded/drawn
             map[[chunkCoordinateX, chunkCoordinateY]].draw(
                 chunkOnCanvasCoordinateX,
                 chunkOnCanvasCoordinateY
             );
 
-            if (map[[chunkCoordinateX, chunkCoordinateY]].entitiesList.length > 0 && abs(chunkCoordinateX-floor(player.x)) <= entityLoadDistance
-            && abs(chunkCoordinateY-floor(player.y)) <= entityLoadDistance) {
-                for (i = 0; i < map[[chunkCoordinateX, chunkCoordinateY]].entitiesList.length; i++) {
-                    entitiesList.push(map[[chunkCoordinateX, chunkCoordinateY]].entitiesList[i]);
-                }
-                map[[chunkCoordinateX, chunkCoordinateY]].entitiesList = [];
-                console.log("escaped");
-            }
-
             if (chunkOnCanvasCoordinateX < mouse.x &&
                 mouse.x < chunkOnCanvasCoordinateX + chunkPixelWidth &&
                 chunkOnCanvasCoordinateY < mouse.y &&
                 mouse.y < chunkOnCanvasCoordinateY + chunkPixelHeight) {
-                
+                if (!arrayEquals(mouse.chunk, [chunkCoordinateX, chunkCoordinateY])) {
+                    mouse.progressDestroy = 0;
+                }
                 mouse.chunk = [chunkCoordinateX, chunkCoordinateY];
             }
             chunkX++;
@@ -663,10 +857,10 @@ function drawTiles () {
     }
 }
 
-entitiesList = [];
-particlesListInFront = [];
-particlesListBehind = [];
-projectilesList = [];
+let inventoryBasic = new inventoryModule();
+let equipmentBasic = new equipmentModule();
+let craftingBasic = new craftingModule();
+let statsBasic = new statsModule();
 
 //Deltatime related
 let now;
@@ -683,30 +877,26 @@ function gameEvents () {
     player.level = 0;
     player.inFluidCorners = [false, false, false, false];
     player.onFire = false;
+
+    player.move;
     
+    ctx.beginPath();
     //Draws tiles, and adds ned chunks if needed
     drawTiles();
 
-    //Tile on mouse
-    tilesDictionary[mouse.lastTile].mouse(mouse.x, mouse.y);
-
     //Finish drawing mouseline
     ctx.stroke();
+    ctx.beginPath();
 
+    //Tile on mouse
+    if (equipmentBasic.content[player.inventoryHolding + 9].containing != false) {
+        tilesDictionary[equipmentBasic.content[player.inventoryHolding + 9].containing].mouse(mouse.x, mouse.y, 40);
+    }
     //Calculate deltatime
     now = Date.now();
     deltaTime = (now-past)/1000;
     past = now;
     if (deltaTime > 0.2) {deltaTime = 0.2;}
-
-    //Player functions
-    player.move;
-    player.draw;
-
-    if (buffs[83] == 1) {
-        shoot();
-        buffs[83] = 0;
-    }
 
     for (let i = particlesListBehind.length-1; i >= 0; i--) {
         if (particlesListBehind[i].stillAlive) {
@@ -725,6 +915,19 @@ function gameEvents () {
         }
     }
 
+    //Player functions
+    player.draw;
+
+    for (let i = droppedItemsList.length-1; i >= 0; i--) {
+        if (droppedItemsList[i].stillAlive) {
+            droppedItemsList[i].draw;
+        } else {
+            droppedItemsList.splice(i, 1);
+        }
+    }
+
+    ctx.beginPath();
+
     for (let i = entitiesList.length-1; i >= 0; i--) {
         if (entitiesList[i].stillAlive) {
             if (entitiesList[i].loaded) {
@@ -734,7 +937,7 @@ function gameEvents () {
                     map[[floor(entitiesList[i].x), floor(entitiesList[i].y)]] = new chunk(floor(entitiesList[i].x), floor(entitiesList[i].y));
                     console.log("new");
                 }
-                map[[floor(entitiesList[i].x), floor(entitiesList[i].y)]].entitiesList.push(entitiesList[i]);
+                map[[floor(entitiesList[i].x), floor(entitiesList[i].y)]].storeEntity(entitiesList[i]);
                 entitiesList.splice(i, 1);
                 console.log("entered");
             }
@@ -754,7 +957,10 @@ function gameEvents () {
 
     ctx.stroke();
 
-
+    //Output x and y coordinates of player
+    pOutput.innerHTML = "x=" + String(floor(player.x)) + " y=" + String(floor(player.y))
+    +"<br>deltaTime: " + deltaTime
+    +"<br>FPS: " + round(1/deltaTime);
 
     ctx.fillStyle = "rgba(255, 247, 107, " + timeInDesert * 0.1 + ")";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -782,20 +988,34 @@ function gameEvents () {
     displayEffects();
 }
 
-let inventoryBasic = new inventoryModule();
-
 function inventory () {
+    /*
     ctx.fillStyle = "black";
     for (let i = 0; i < WIDTH/tilePixelWidth; i++) {
         for (let j = 0; j < HEIGHT/tilePixelHeight; j++) {
             ctx.drawImage(tileMap, 200, 0, 100, 100, i*tilePixelWidth, j*tilePixelWidth, tilePixelWidth, tilePixelWidth);
         }   
-    }
+    }*/
+
+    drawTiles();
 
     inventoryBasic.draw;
+    equipmentBasic.draw;
+    craftingBasic.draw;
+    statsBasic.draw;
+
+    ctx.beginPath();
+
+    inventoryHover();
+
+    ctx.beginPath();
 
     if (mouse.containing != false) {
-        tilesDictionary[mouse.containing].mouse(mouse.x, mouse.y);
+        tilesDictionary[mouse.containing].mouse(mouse.x, mouse.y, 40);
+    } else {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.arc(mouse.x, mouse.y, 10, 0, 2*PI);
+        ctx.fill();
     }
 }
 
@@ -804,6 +1024,7 @@ let inventoryActive = false;
 function refreshScreen () {
     //Clear screen
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    player.statUpdate;
 
     if (buffs[69] == 1) {
         inventoryActive = !inventoryActive;

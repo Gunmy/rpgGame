@@ -1,6 +1,12 @@
 class baseEntity {
     costumeX; costumeY; x; y; width; height; sizeRadius; standardColor;
     health = 100;
+    strength = 100;
+    damage = 10;
+    defence = 100;
+    pickUpRadius = 0.1;
+
+    isAnimal = false;
 
     constructor (costumeX, costumeY, x, y, width, height, sizeRadius) {
         this.costumeX = costumeX;
@@ -25,6 +31,9 @@ class baseEntity {
     get shatter () {
         /*x, y, costumeX, costumeY, costumeWidth, costumeHeight, width, height, 
                 duration, speed, xmov, ymov, pType*/
+                let audio = new Audio('soundEffects/explosion.wav');
+                audio.volume = 0.1;
+                audio.play();
                 let max = 4;
                 for (let i = 0; i < max; i++) {
                     for (let j = 0; j < max; j++) {
@@ -47,8 +56,13 @@ class baseEntity {
                 }*/
     }
 
+    get dropItems () {
+        //drops
+    }
+
     get deathAnimation () {
         this.shatter;
+        this.dropItems;
     }
 
     get updateSelf () {
@@ -105,7 +119,7 @@ class trackerEntity extends baseEntity {
             let entitiesListPlusPlayer = entitiesList.concat([player]);
 
             for (let i = 0; i < entitiesListPlusPlayer.length; i++) {
-                for (let j = jx; j <= jMax; j++) {
+                for (let j = jx; j < jMax; j++) {
                     if (hyp(
                             entitiesListPlusPlayer[i].x-this.x-cos(angle)*this.speed*deltaTime*round(1-jx/jMax), 
                             entitiesListPlusPlayer[i].y-this.y
@@ -167,11 +181,11 @@ class skeleton extends trackerEntity {
 
         if (this.inTrackingRange) {
             if (floor(random()*100) == 1) {
-                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer, 0.3, 5, false, 10));
-                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer-1/6*PI, 0.3, 5, false, 10));
-                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer+1/6*PI, 0.3, 5, false, 10));                
-                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer-1/12*PI, 0.3, 5, false, 10));
-                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer+1/12*PI, 0.3, 5, false, 10));
+                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer, 0.3, 5, false, this.damage, this.strength));
+                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer-1/6*PI, 0.3, 5, false, this.damage, this.strength));
+                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer+1/6*PI, 0.3, 5, false, this.damage, this.strength));                
+                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer-1/12*PI, 0.3, 5, false, this.damage, this.strength));
+                projectilesList.push(new baseProjectile(1, this.x, this.y, this.calcAngleToPlayer+1/12*PI, 0.3, 5, false, this.damage, this.strength));
 
             }
 
@@ -189,6 +203,10 @@ class skeleton extends trackerEntity {
         ctx.textAlign = "center";
         ctx.fillText("Dead", round(WIDTH/2  + (this.x-player.x)*tilePixelWidth*chunkWidth),
         round(HEIGHT/2 + (this.y-player.y)*tilePixelHeight*chunkHeight-tilePixelHeight*2/3));
+    }
+
+    get dropItems () {
+        droppedItemsList.push(new droppedItem(104, this.x, this.y, 0, 0, 30, 1));
     }
 
     get draw () {
@@ -236,4 +254,235 @@ class tree extends trackerEntity {
             tilePixelWidth, tilePixelHeight
         );
     }
+}
+
+class animal extends baseEntity {
+    type;
+
+    isAnimal = true;
+    isFed = false;
+
+    movementAngle = 0;
+    movementTime = 0;
+    moving = false;
+
+    constructor (x, y, type) {
+        super(animalsList[type].costumeX, animalsList[type].costumeY, x, y, animalsList[type].width, animalsList[type].height, animalsList[type].sizeRadius);
+        this.type = type;
+    }
+
+    get special () {
+
+    }
+
+    get move () {
+        let jx = 0;
+        let jy = 0;
+        let jMax = 10;
+        let speed = animalsList[this.type].speed;
+
+        let entitiesListPlusPlayer = entitiesList.concat([player]);
+
+        for (let i = 0; i < entitiesListPlusPlayer.length; i++) {
+            for (let j = jx; j < jMax; j++) {
+                if (hyp(
+                        entitiesListPlusPlayer[i].x-this.x-cos(this.movementAngle)*speed*deltaTime*round(1-jx/jMax), 
+                        entitiesListPlusPlayer[i].y-this.y
+                    ) < entitiesListPlusPlayer[i].sizeRadius 
+                    && entitiesListPlusPlayer[i].x != this.x
+                    && entitiesListPlusPlayer[i].y != this.y) {
+                    jx++;
+                } else {break;}
+            }
+
+            for (let j  = jy; j < jMax; j++) {
+                if (hyp(entitiesListPlusPlayer[i].x-this.x,
+                        entitiesListPlusPlayer[i].y-this.y-sin(this.movementAngle)*speed*deltaTime*round(1-jy/jMax)
+                    ) < entitiesListPlusPlayer[i].sizeRadius
+                    && entitiesListPlusPlayer[i].x != this.x
+                    && entitiesListPlusPlayer[i].y != this.y) {
+                    jy++;
+                } else {break;}
+            }
+        }
+
+        this.y += sin(this.movementAngle)*speed*deltaTime*round(1-jy/jMax);
+        this.x += cos(this.movementAngle)*speed*deltaTime*round(1-jx/jMax);
+
+        if (jy == jMax && jx == jMax) {
+            this.moving = false;
+        }
+    }
+
+    calcDistanceToThing (thing) {
+        return hyp(this.x-thing.x, this.y-thing.y);
+    }
+
+    calcAngleToThing (thing) {
+        let yDif = (thing.y-this.y);
+        let xDif = (thing.x-this.x);
+        let angle = Math.atan2(yDif, xDif);
+
+        return angle;
+    }
+
+
+    get updateEvent () {
+        let tempAngle = false;
+        let tempDistance = 1;
+        if (this.isFed == false) {
+            for (let i = 0; i < droppedItemsList.length; i++) {
+                let item = droppedItemsList[i];
+                if (animalsList[this.type].attractedTo.includes(item.itemID)
+                && (tempAngle == false || tempDistance > this.calcDistanceToThing(item))) {
+                    tempDistance = this.calcDistanceToThing(item);
+                    tempAngle = this.calcAngleToThing(item);
+                }
+            }
+        }
+
+        if (this.isFed) {
+            for (let i = 0; i < entitiesList.length; i++) {
+                let entity = entitiesList[i];
+                if (
+                (entity.x != this.x || entity.y != this.y) 
+                && (tempAngle == false || tempDistance > this.calcDistanceToThing(entity))
+                && entity.isAnimal
+                && entity.isFed
+                && entity.type == this.type
+                ) {
+                    if (this.calcDistanceToThing(entity) <= this.sizeRadius*2) {
+                        let tempestAngle = this.calcAngleToThing(entity);
+                        this.isFed = false;
+                        entity.isFed = false;
+                        entitiesList.push(new animal(this.x+cos(tempestAngle)*this.sizeRadius, this.y+sin(tempestAngle)*this.sizeRadius, this.type));
+                    } else {
+                        tempDistance = this.calcDistanceToThing(entity);
+                        tempAngle = this.calcAngleToThing(entity);
+                    }
+                    
+                }
+            }
+        }
+
+        if (tempAngle != false) {
+            if (tempDistance > 0.1) {
+                this.movementTime = 0.001;
+                this.movementAngle = tempAngle;
+                this.moving = true;
+            }
+        }
+        else if (this.calcDistanceToThing(player) < 1 && animalsList[this.type].attractedTo.includes(equipmentBasic.content[player.inventoryHolding+9].containing) && this.isFed == false) {
+            this.movementTime = 0.001;
+            this.movementAngle = this.calcAngleToThing(player);
+            this.moving = true;
+
+        } else if (this.movementTime <= 0) {
+            if (floor(random()*5) == 0) {
+                this.special;
+            } else {
+                if (this.moving == false) {
+                    this.movementAngle = 2*PI*random();
+                    this.movementTime  = 10*random()+2;
+                    this.moving = true;
+                } else {
+                    this.movementTime  = 20*random()+2;
+                    this.moving = false;
+                }
+            }
+        } else {
+            this.movementTime -= deltaTime;
+        }
+
+        if (this.isFed && floor(random()*100) == 1) {
+            particlesListBehind.push(
+                new imageParticle(
+                    this.x, this.y, 1100, 1400, 100, 100, 0.3, 0.3, 
+                    3, 0.1, negPos()*0.3, 1, 1
+                )
+            )
+        }
+    }
+
+    get sinFunction () {
+        return sin(Date.now()/(animalsList[this.type].bounce));
+    }
+
+    get cosFunction () {
+        return cos(Date.now()/(animalsList[this.type].bounce)+1/3*PI);
+    }
+
+    get halfWidth () {
+        return 1/2*(1-0.05*this.cosFunction);
+    }
+
+    get halfHeight () {
+        return 1/2;
+    }
+
+    get draw () {
+        this.updateSelf;
+
+        let tempX = -this.halfWidth*tilePixelWidth;
+
+        let tempY1 = -this.halfHeight*tilePixelWidth;
+        let tempY = tempY1*(1-0.1*this.sinFunction);
+        let tempWidth = tilePixelWidth*(1-0.05*this.cosFunction);
+
+        let tempHeight = (tempY1+tempY)*-1;
+
+        //let tempHeight = (tilePixelHeight + round((this.level-1)*tilePixelHeight*this.sizeConstant))*(1-0.1*this.sinFunction)*1.2;
+
+        ctx.save();
+        ctx.translate(WIDTH/2  + (this.x-player.x)*tilePixelWidth*chunkWidth, 
+        HEIGHT/2 + (this.y-player.y)*tilePixelHeight*chunkHeight);
+
+        if (this.moving) {
+            ctx.rotate(PI*this.sinFunction/20);
+        }
+
+        if (cos(this.movementAngle) > 0) {
+            ctx.scale(-1, 1);
+        }
+
+
+        ctx.drawImage(
+            entitiesMap,
+            this.costumeX, this.costumeY, this.width, this.height,
+            tempX, 
+            tempY, 
+            tempWidth, tempHeight
+        );
+
+        ctx.restore();
+
+    }
+
+    get updateSelf () {
+        this.updateEvent;
+
+        if (this.movementTime > 0 && this.moving) {
+            this.move;
+        }
+    }
+}
+
+class baseAnimal {
+    costumeX; costumeY; width; height; name; sizeRadius; attractedTo; speed; bounce;
+    constructor(costumeX, costumeY, width, height, name, sizeRadius, attractedTo, speed, bounce) {
+        this.costumeX = costumeX;
+        this.costumeY = costumeY;
+        this.width = width;
+        this.height = height;
+        this.name = name;
+        this.sizeRadius = sizeRadius;
+        this.attractedTo = attractedTo;
+        this.bounce = bounce;
+        this.speed = speed;
+    }
+}
+
+
+let animalsList = {
+    0: new baseAnimal(1200, 1200, 100, 100, "Chicken", 0.1, [209], 0.1, 60)
 }

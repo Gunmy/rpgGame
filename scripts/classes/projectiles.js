@@ -1,11 +1,12 @@
-
 class baseProjectile {
     type; x; y;
     angle;
     speed; duration; spawnTime = Date.now()/1000;
-    owner; damage;
+    damage;
+    ownedByPlayer;
+    strength;
 
-    constructor (type, x, y, angle, speed, duration, ownedByPlayer, damage) {
+    constructor (type, x, y, angle, speed, duration, ownedByPlayer, damage, strength) {
         this.type = type;
         this.x = x;
         this.y = y;
@@ -14,6 +15,7 @@ class baseProjectile {
         this.duration = duration;
         this.ownedByPlayer = ownedByPlayer;
         this.damage = damage;
+        this.strength = strength;
     }
 
     get stillAlive () {
@@ -35,10 +37,10 @@ class baseProjectile {
         this.shatter;
     }
 
-    get damageParticle () {
-        particlesListInFront.push(new textParticle(this.x, this.y, 0.3+random()*0.3, random()*2,  
+    damageParticle (dmg) {
+        particlesListInFront.push(new textParticle(this.x, this.y, 0.3+random()*0.3, 1+random()*2,  
                         [200, 50, 0], 0.3, 
-                        negPos(), 1, 1, this.damage));
+                        negPos(), 1, 1, round(dmg)));
     }
 
     calcDistanceToEntity (entity) {
@@ -52,18 +54,24 @@ class baseProjectile {
         if (this.ownedByPlayer) {
             for (let i = 0; i < entitiesList.length; i++) {
                 if (this.calcDistanceToEntity(entitiesList[i]) < (baseProjectilesInfo[this.type].sizeRadius + entitiesList[i].sizeRadius)) {
-                    entitiesList[i].health -= this.damage;
-                    this.damageParticle;
+                    let tempDMG = calcDamage(this.damage, this.strength, entitiesList[i].defence);
+                    entitiesList[i].health -= tempDMG;
+                    this.damageParticle(tempDMG);
                     this.duration = 0;
+                    let projectileHit = new Audio('soundEffects/hitHurt.wav');
+                    projectileHit.play();
+                    console.log(tempDMG);
                     break;
                 }
             }
-        } else {
-            if (this.calcDistanceToEntity(player) < (baseProjectilesInfo[this.type].sizeRadius + player.hitBox)) {
-                player.health -= this.damage;
-                this.damageParticle;
-                this.duration = 0;
-            }
+        } else if (this.calcDistanceToEntity(player) < (baseProjectilesInfo[this.type].sizeRadius + player.hitBox)) {
+            let tempDMG = calcDamage(this.damage, this.strength, player.realStats.stats[1]);
+            player.health -= tempDMG;
+            let audio = new Audio('soundEffects/hitHurt.wav');
+            audio.volume = 0.1;
+            audio.play();
+            this.damageParticle(tempDMG);
+            this.duration = 0;
         }    
     }
 
@@ -98,17 +106,17 @@ class baseProjectile {
 
 class explodingProjectile extends baseProjectile {
     amount; 
-    constructor(type, x, y, angle, speed, duration, ownedByPlayer, damage, amount) {
-        super(type, x, y, angle, speed, duration, ownedByPlayer, damage);
+    constructor(type, x, y, angle, speed, duration, ownedByPlayer, damage, strength, amount) {
+        super(type, x, y, angle, speed, duration, ownedByPlayer, damage, strength);
         this.amount = amount;
     }
 
     get deathAnimation () {
-        this.shatter();
+        this.shatter;
         let offset = 1/3*PI/((this.amount-1)/2);
         let start = -1/3*PI+this.angle;
         for (let i = 0; i < this.amount; i++) {
-            projectilesList.push(new baseProjectile(baseProjectilesInfo[this.type].explosionProjectile, this.x, this.y, start+offset*i, 0.3, 5, this.ownerByPlayer, this.damage/3))
+            projectilesList.push(new baseProjectile(baseProjectilesInfo[this.type].explosionProjectile, this.x, this.y, start+offset*i, 0.3, 5, this.ownedByPlayer, this.damage/3, this.strength))
         }
     }
 
@@ -141,12 +149,4 @@ let baseProjectilesInfo = {
     1: new baseProjectileInfo(200, 1400, 50, 50, 0.01, 0.5, [0, 0, 0]),
     2: new baseProjectileInfo(250, 1450, 50, 50, 0.01, 0.5, [124, 173, 32]),
     3: new explodingProjectileInfo(250, 1450, 50, 50, 0.01, 1, [124, 173, 32], 2)
-}
-
-
-function shoot () {
-    let yDif = (mouse.y-HEIGHT/2);
-    let xDif = (mouse.x-WIDTH/2);
-    let angle = Math.atan2(yDif, xDif);
-    projectilesList.push(new baseProjectile(2, player.x, player.y, angle, 0.3, 2, true, 10));
 }

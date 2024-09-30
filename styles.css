@@ -1,0 +1,327 @@
+:root {
+  --main-bg-color: #F4F0FA; 
+  --shadow: #F8F8F8;
+  --secondary-bg-color: #FFFFFF;
+  --text-bg-color: #FFFFFF;
+  --black: #000000;
+  --white: #FFFFFF;
+  --buttonHighlight: #3F83F1;
+  --footer-bg: #67B05E;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    width: auto;
+    color: var(--black);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    border-radius: 0;
+    text-decoration: none;
+    transition-duration: 0.15s;
+    font-size: 12px;
+}
+
+body {
+    background-color: var(--main-bg-color);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    row-gap: 3rem;
+    padding-bottom: 4rem;
+
+}
+
+
+a {
+    color: var(--buttonHighlight);
+}
+
+nav {
+    width: 100%;
+    background-color: var(--buttonHighlight);
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    position: fixed;
+    bottom: 0;
+    z-index: 99999999999999999999999999999999999999999999999999999999999;
+
+}
+
+.sticky {
+    position: fixed;
+    top: 0;
+    background-color: none;
+}
+
+nav > ul {
+    list-style-type: none;
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 2rem;
+
+
+}
+
+nav > ul > li {
+    margin: 0;
+    text-align: center;
+
+}
+
+nav > ul > li > a {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    background-color: var(--buttonHighlight);
+    text-align: center;
+    color: var(--white);
+    font-size: 1rem;
+
+}
+
+nav > ul > li > a:hover {
+    color: var(--black);
+    text-decoration: underline;
+    background-color: var(--white);
+}
+
+section {
+    width: 90%;
+}
+
+
+section > ul {
+    width: 100%;
+    list-style-type: none;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 2rem;
+    row-gap: 2rem;
+}
+
+#aboutMe > ul {
+    justify-content: space-between;
+}
+
+#projects > ul {
+    justify-content: space-around;
+}
+
+section > ul > li {
+    background-color: var(--secondary-bg-color);    
+    border-radius: 0.3rem;
+    box-shadow: 0.3rem 0.5rem var(--shadow);
+    padding: 1rem;
+    align-self: start;
+}
+
+section > ul > li > article, section > ul > li > a  {
+    max-width: 25rem;
+    width: 100%;
+    background-color: var(--text-bg-color);
+    border-radius:  0.3rem;
+    column-gap: 1rem;
+    row-gap: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+
+
+}
+
+
+img, video, iframe {
+    width: 100%;
+    border-radius: 0.3rem;
+    max-width: 45rem;
+}
+
+article > ul > li {
+    margin-left: 2rem;
+    font-size: 1rem;
+}
+article > ul {
+    width: 100%;
+}
+
+h2 {
+    margin: auto;
+    text-align: center;
+    color: var(--buttonHighlight);
+
+    padding: 2rem;
+
+    font-size: 2rem;
+
+
+
+}
+
+h3 {
+    font-size: 2rem;
+}
+
+section > ul > li > article > h3, section > ul > li > a > h3 {
+    font-size: 1.6rem;
+    color: var(--black);
+    border-bottom: 0.3rem dotted var(--footer-bg);
+    width: 100%;
+
+}
+
+#projects > ul > li:hover > a, #projects > ul > li:hover {
+    background-color: var(--footer-bg);
+}
+
+
+#projects > ul > li:hover > a > h3 {
+    color: var(--white);
+    border-bottom: 0.3rem dotted var(--white);
+}
+
+#projects > ul > li:hover > a > p {
+    color: var(--white);
+}
+
+section > ul > li > a > p {
+    color: var(--black);
+}
+
+section > ul > li > a > img, section > ul > li > a > video, section > ul > li > a > iframe {
+    -webkit-filter: grayscale(100%);
+    filter: grayscale(100%);
+    border: none;
+}
+
+#projects > ul > li:hover > a > img, #projects > ul > li:hover > a > video, #projects > ul > li:hover > a > iframe {
+    -webkit-filter: grayscale(100%);
+    filter: grayscale(0%);
+}
+
+
+p {
+    font-size: 1rem;
+}
+
+
+
+footer {
+    width: 100%;
+    background-color: var(--footer-bg);
+    color:var(--white);
+    padding-bottom: 2.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 2.5rem; 
+}
+
+header {
+    background-color: var(--footer-bg);
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    padding-bottom: 1rem;
+
+}
+
+header > p, footer > p {
+    color: var(--main-bg-color);
+}
+
+h1 {
+    color: var(--white);
+    width: 100%;
+    text-align: center;
+    font-size: 30px;
+}
+
+hr {
+    border-top: 3px dotted var(--footer-bg);
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+
+.noMax {
+    max-width: 100%;
+}
+
+.halfMax {
+    max-width: 43%;
+    width: 43%;
+}
+
+ul > li > ul {
+    margin-left: 10px;
+}
+
+
+@media (max-width: 43rem) {
+    section > ul > li, section > ul > li > a, section > ul > li > article {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .halfMax {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    nav > ul > li > a {
+        padding-left: 0;
+        padding-right: 0;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        background-color: var(--buttonHighlight);
+        text-align: center;
+        color: var(--white);
+        font-size: 1rem;    
+        width: 100%;
+        font-weight: normal;
+
+    }
+
+    nav > ul > li > a:hover {
+        text-decoration: underline;
+        font-weight: bold;
+        background-color: var(--buttonHighlight);
+        color: var(--white)
+    }
+
+    nav > ul > li {
+        width: 25%;
+    }
+
+}
+
+main {
+    position:fixed;
+    padding:0;
+    margin:0;
+    background-color: var(--footer-bg);
+
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+
+    p {
+        font-family: "Press Start 2P", system-ui;
+        font-weight: 400;
+        font-style: normal;
+        width: 30rem;
+        overflow: hidden;
+    }
+
+}

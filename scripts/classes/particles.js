@@ -130,6 +130,40 @@ class imageParticle extends baseParticle {
     }
 }
 
+class tileImageParticle extends imageParticle {
+    constructor (x, y, costumeX, costumeY, costumeWidth, costumeHeight, width, height, 
+    duration, speed, xmov, ymov, pType) {
+        super(x, y, costumeX, costumeY, costumeWidth, costumeHeight, width, height, 
+            duration, speed, xmov, ymov, pType)
+    }
+
+    get draw () {
+        this.updateSelf;
+
+        ctx.save();
+        ctx.translate(round(WIDTH/2  + (this.x-player.x)*tilePixelWidth*chunkWidth), 
+        round(HEIGHT/2 + (this.y-player.y)*tilePixelHeight*chunkHeight));
+        ctx.rotate(PI*4*(Date.now()/1000-this.spawnTime)/this.duration);
+        ctx.globalAlpha = 1-(Date.now()/1000-this.spawnTime)/this.duration;
+        ctx.drawImage(tileMap, this.costumeX, this.costumeY, this.costumeWidth, this.costumeHeight,
+            round(-this.width*tilePixelWidth/2), 
+            round(-this.height*tilePixelHeight/2), 
+            round(this.width*tilePixelWidth), round(this.height*tilePixelHeight));
+        ctx.restore();
+        switch (this.pType) {
+            case 0:
+                this.y+=this.speed*deltaTime*this.ymov;
+                this.x+=this.speed*deltaTime*this.xmov;
+                break;
+            case 1:
+                this.y=this.speed*this.ymov*((Date.now()/1000-this.spawnTime-this.duration/3)**2-(this.duration/3)**2)+this.startY;
+                this.x+=this.speed*deltaTime*this.xmov/5;
+                break;
+        }
+        this.size *= 1-0.5*deltaTime;
+    }
+}
+
 class textParticle extends baseParticle {
     color; xmov; ymov; speed; pType; startY; inputText;
     constructor (x, y, fontSize, duration, color, speed, xmov, ymov, pType, inputText) {
